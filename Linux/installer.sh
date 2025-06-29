@@ -1,14 +1,27 @@
 #!/bin/bash
 
-# Directory
+# Install destination
 destination="/usr/local/bin"
 
-# Current script name
+# Name of this script (so we skip it)
 script_name="installer.sh"
 
-# Copy all files in usr/local/bin
+# Ensure we're running with sudo
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root (use: sudo ./installer.sh)"
+  exit 1
+fi
+
+echo "Installing executables to $destination..."
+
+# Loop through files in current directory
 for entry in *; do
-  if [ "$entry" != "$script_name" ]; then
-    cp -r "$entry" "$destination"
+  # Skip the installer script itself
+  if [ "$entry" != "$script_name" ] && [ -f "$entry" ]; then
+    echo "Installing $entry..."
+    cp "$entry" "$destination/"
+    chmod +x "$destination/$entry"
   fi
 done
+
+echo "Done. You can now run the program using: IPseen"
