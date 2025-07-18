@@ -1,91 +1,61 @@
-@echo off
-setlocal EnableDelayedExpansion
+#!/bin/bash
+# IPseen 0.01
 
-set "version=0.07"
+get_private_ipv4() {
+    hostname -I | tr ' ' '\n' | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n1
+}
 
-:: Check for argument
-set "arg=%~1"
+get_private_ipv6() {
+    ip -6 addr show scope global | grep 'inet6' | awk '{print $2}' | cut -d/ -f1 | head -n1
+}
 
-:: Get private IPv4 (first one)
-for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /R "IPv4.*"') do (
-    set "private_ipv4=%%A"
-    set "private_ipv4=!private_ipv4:~1!"
-    goto :next1
-)
-:next1
+get_public_ipv4() {
+    curl -s https://ipinfo.io/ip
+}
 
-:: Get private IPv6 (first global)
-for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /R "IPv6.*"') do (
-    set "private_ipv6=%%A"
-    set "private_ipv6=!private_ipv6:~1!"
-    goto :next2
-)
-:next2
+get_public_ipv6() {
+    local iface
+    iface=$(ip -6 route show default 2>/dev/null | awk '/default/ {print $5}' | head -n1)
+    if [ -n "$iface" ]; then
+        curl -s --interface "$iface" https://ifconfig.co/ip 2>/dev/null
+    fi
+}
 
-:: Get MAC address (first active adapter)
-for /f "tokens=1,* delims=:" %%A in ('getmac /v /fo list ^| findstr /I "Physical Address"') do (
-    set "mac=%%B"
-    set "mac=!mac:~1!"
-    goto :next3
-)
-:next3
+print_ip() {
+    local label="$1"
+    local ip="$2"
+    if [ -n "$ip" ]; then
+        printf "\033[1m%s:\033[0m %s\n" "$label" "$ip"
+    fi
+}
 
-:: Public IPs via curl (if installed)
-set "curl_installed="
-where curl >nul 2>nul && set "curl_installed=1"
+print_help() {
+    printf "%-16s %s\n" "IPseen" "Show Private, Public and MAC Addresses"
+    echo ""
+    printf "%-16s %s\n" "IPseen --help" "Show this help command"
+    printf "%-16s %s\n" "IPseen --version" "Show the current IPseen version"
+    printf "%-16s %s\n" "IPseen --public" "Show your Public IPv4 and IPv6 Addresses"
+    printf "%-16s %s\n" "IPseen --private" "Show your Private IPv4 and IPv6 Addresses"
+    printf "%-16s %s\n" "IPseen --mac" "Show your MAC Address"
+}
 
-if "%arg%"=="--help" (
-    echo IPseen - Show Private, Public and MAC Addresses
-    echo.
-    echo Usage:
-    echo    IPseen --help       Show this help message
-    echo    IPseen --version    Show version
-    echo    IPseen --private    Show private IPv4 and IPv6
-    echo    IPseen --public     Show public IPv4 and IPv6 (requires curl)
-    echo    IPseen --mac        Show MAC address
-    echo.
-    goto :eof
-)
-
-if "%arg%"=="--version" (
-    echo IPseen %version%
-    goto :eof
-)
-
-if "%arg%"=="--mac" (
-    echo MAC Address: %mac%
-    goto :eof
-)
-
-if "%arg%"=="--private" (
-    echo Private IPv4 Address: %private_ipv4%
-    echo Private IPv6 Address: %private_ipv6%
-    goto :eof
-)
-
-if "%arg%"=="--public" (
-    if not defined curl_installed (
-        echo Error: curl not found. Please install curl or use Windows 10+ where it is included.
-        goto :eof
-    )
-    for /f %%A in ('curl -s https://ipinfo.io/ip') do set "public_ipv4=%%A"
-    for /f %%A in ('curl -s https://ifconfig.co/ip') do set "public_ipv6=%%A"
-    echo Public IPv4 Address: %public_ipv4%
-    echo Public IPv6 Address: %public_ipv6%
-    goto :eof
-)
-
-:: Default: show all
-echo Private IPv4 Address: %private_ipv4%
-echo Private IPv6 Address: %private_ipv6%
-
-if defined curl_installed (
-    for /f %%A in ('curl -s https://ipinfo.io/ip') do set "public_ipv4=%%A"
-    for /f %%A in ('curl -s https://ifconfig.co/ip') do set "public_ipv6=%%A"
-    echo Public IPv4 Address: %public_ipv4%
-    echo Public IPv6 Address: %public_ipv6%
-) else (
-    echo Public IP: curl not installed.
-)
-
-echo MAC Address: %mac%
+if [ "$1" = "--mac" ]; then
+    mac_addr=$(ip link show | awk '/ether/ {print $2}' | head -n1)
+    print_ip "MAC Address" "$mac_addr"
+elif [ "$1" = "--private" ]; then
+    print_ip "Private IPv4 Address" "$(get_private_ipv4)"
+    print_ip "Private IPv6 Address" "$(get_private_ipv6)"
+elif [ "$1" = "--public" ]; then
+    print_ip "Public IPv4 Address" "$(get_public_ipv4)"
+    print_ip "Public IPv6 Address" "$(get_public_ipv6)"
+elif [ "$1" = "--version" ]; then
+    echo "IPseen 0.07"
+elif [ "$1" = "--help" ]; then
+    print_help
+else
+    print_ip "Private IPv4 Address" "$(get_private_ipv4)"
+    print_ip "Private IPv6 Address" "$(get_private_ipv6)"
+    print_ip "Public IPv4 Address" "$(get_public_ipv4)"
+    print_ip "Public IPv6 Address" "$(get_public_ipv6)"
+    print_ip "MAC Address" "$(ip link show | awk '/ether/ {print $2}' | head -n1)"
+fi
