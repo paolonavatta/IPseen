@@ -53,9 +53,11 @@ elif [ "$1" = "--version" ]; then
 elif [ "$1" = "--help" ]; then
     print_help
 else
-    print_ip "Private IPv4 Address" "$(get_private_ipv4)"
-    print_ip "Private IPv6 Address" "$(get_private_ipv6)"
-    print_ip "Public IPv4 Address" "$(get_public_ipv4)"
-    print_ip "Public IPv6 Address" "$(get_public_ipv6)"
+    echo "Private IP Address:"
+    print_ip " Private IPv4 Address" "$(get_private_ipv4)"
+    print_ip " Private IPv6 Address" "$(get_private_ipv6)"
+    echo "Public IP Address:"
+    print_ip " Public IPv4 Address" "$(get_public_ipv4)"
+    print_ip " Public IPv6 Address" "$(get_public_ipv6)"
     print_ip "MAC Address" "$(ip link show | awk '/ether/ {print $2}' | head -n1)"
 fi
